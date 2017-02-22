@@ -41,13 +41,13 @@ object RoboChallengeMessage {
       casecodec2(WorldDimension.apply, WorldDimension.unapply)("y_max", "x_max")
   }
 
-  case class Point(collected: Boolean, x: Int, y: Int, score: Int) {
+  case class Point(collected: Boolean, r: Int, x: Int, y: Int, score: Int) {
     def isCrater = score == -1
   }
 
   object Point {
     implicit def PointCodecJson: CodecJson[Point] =
-      casecodec4(Point.apply, Point.unapply)("collected", "x", "y", "score")
+      casecodec5(Point.apply, Point.unapply)("collected", "r", "x", "y", "score")
   }
 
   case class GameState(robot: RobotPosition, world: WorldDimension, points: List[Point])
