@@ -4,11 +4,7 @@ import net.sigusr.mqtt.api.{AtMostOnce, Message, MessageId, Subscribe, Subscribe
 
 class Robot(manager: ActorRef) extends Actor {
 
-  val localSubscriber = "test"
-
   val topics = Vector("robot/state", "robot/done", "robot/error")
-
-  println(s"Got $manager")
 
   manager ! Subscribe(topics zip Vector.fill(topics.length) {
     AtMostOnce
