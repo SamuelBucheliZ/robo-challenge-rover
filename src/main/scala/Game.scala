@@ -1,19 +1,17 @@
-import java.net.InetSocketAddress
-
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import akka.util.ByteString
 import argonaut.Argonaut._
-import com.typesafe.config.ConfigFactory
 import net.sigusr.mqtt.api._
 
-class Game(teamName: String) extends Actor with ActorLogging {
-
-  context.actorOf(Manager.props(new InetSocketAddress("127.0.0.1", 1883)), "mqtt-broker") ! Connect(self.path.name)
+class Game(teamName: String, broker: ActorRef) extends Actor with ActorLogging {
 
   val baseTopic = s"player/$teamName"
   val incomingTopic = s"$baseTopic/incoming"
   val gameTopic = s"$baseTopic/game"
+
+  broker ! Subscribe(Vector((baseTopic, AtMostOnce), (incomingTopic, AtMostOnce)), 1)
+  broker ! Publish(baseTopic, ByteString(RoboChallengeMessage.register.asJson.nospaces).toVector)
 
   override def receive: Receive = {
     case Connected => context become registering(sender())
@@ -28,11 +26,10 @@ class Game(teamName: String) extends Actor with ActorLogging {
     LoggingReceive {
       case Subscribed(topics, MessageId(1)) =>
         log.info(s"Subscribed to $topics")
-      case Message(t, content) if t == baseTopic =>
+      case m@Message(t, content) if t == baseTopic =>
         val cmd = ByteString.fromArray(content.toArray).toString.decodeOption[RoboChallengeMessage.Command]
 
-        log.info(s"Got $cmd")
-        context become registered()
+        log.info(s"Got $m")
     }
   }
 
@@ -47,37 +44,3 @@ class Game(teamName: String) extends Actor with ActorLogging {
     }
   }
 }
-
-
-object Harvester {
-
-  val config =
-    """akka {
-         loglevel = DEBUG
-         actor {
-            debug {
-              receive = off
-              autoreceive = off
-              lifecycle = off
-            }
-         }
-       }
-    """
-
-
-  val teamName = "akkaers"
-  val system = ActorSystem(s"$teamName-system", ConfigFactory.parseString(config))
-
-  def shutdown(): Unit = {
-    system.shutdown()
-  }
-
-  def main(args: Array[String]): Unit = {
-    system.actorOf(Props(new Game(teamName)))
-    sys.addShutdownHook {
-      shutdown()
-    }
-  }
-}
-
-
